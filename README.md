@@ -1,6 +1,6 @@
 # DogChat
 
-Full disclosure, the frontend is **100% AI-generated**. However, the LangChain agent, database design, and database setup are my own work.
+Full disclosure, the frontend is **100% AI-generated**. However, the LangChain agent, database design, and database setup is my own work.
 
 ## Deploy to Render with Azure SQL
 
