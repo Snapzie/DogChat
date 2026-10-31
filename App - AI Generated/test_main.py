@@ -22,6 +22,7 @@ class WebTests(unittest.TestCase):
             {"type": "text", "text": "**A recorded answer**"},
         ])]}
         self.database = SimpleNamespace(
+            check_connection=Mock(return_value=True),
             list_dogs=Mock(return_value={"dogs": [{"dog_id": 1, "pedigree_name": "Example"}], "total_count": 42, "show_count": 12}),
             get_dog=Mock(return_value={"dog_id": 1, "pedigree_name": "Example", "birth_date": date(2020, 1, 1), "titles": []}),
             list_shows=Mock(return_value=[{"show_id": 2, "date": date(2024, 1, 1), "location": "Herning", "organizer": None}]),
@@ -124,6 +125,29 @@ class WebTests(unittest.TestCase):
         self.assertEqual(self.client.cookies.get(COOKIE), thread)
         self.agent.invoke.assert_not_called()
         self.agent.checkpointer.delete_thread.assert_not_called()
+
+    def test_readiness_checks_database_without_changing_chat(self):
+        thread = self.client.cookies.get(COOKIE)
+        response = self.client.get("/api/ready")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"ready": True})
+        self.assertEqual(response.headers["cache-control"], "no-store")
+        self.database.check_connection.assert_called_once_with()
+        self.database.list_dogs.assert_not_called()
+        self.assertEqual(self.client.cookies.get(COOKIE), thread)
+        self.agent.invoke.assert_not_called()
+        self.agent.checkpointer.delete_thread.assert_not_called()
+
+    def test_readiness_failure_returns_error_then_can_recover(self):
+        from sqlalchemy.exc import OperationalError
+
+        self.database.check_connection.side_effect = OperationalError("private query", {}, Exception("private connection"))
+        with patch("main.logger"):
+            response = self.client.get("/api/ready")
+        self.assertEqual(response.status_code, 503)
+        self.assertNotIn("private", response.text)
+        self.database.check_connection.side_effect = None
+        self.assertEqual(self.client.get("/api/ready").json(), {"ready": True})
 
     def test_database_missing_dog(self):
         self.database.get_dog.return_value = None

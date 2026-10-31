@@ -45,6 +45,9 @@ class DatabaseTests(unittest.TestCase):
                 {"show_result_id": 4, "award": "CACIB"},
             ])
 
+    def test_readiness_executes_database_query(self):
+        self.assertTrue(self.database.check_connection())
+
     def test_only_selected_dogs_are_listed_alphabetically(self):
         names = ["Tamilan Jingu-Kogo", "Stjernedrys' Known As Special Agent Z", "State-of-art Joyful Miss Norway", "Stjernedrys' Just Born To Be A Star"]
         with self.engine.begin() as connection:

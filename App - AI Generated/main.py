@@ -89,6 +89,10 @@ def create_app(agent_factory=None, database=None):
             logger.exception("Database browser request failed")
             raise HTTPException(503, "The database records could not be loaded. Please try again.") from None
 
+    @app.get("/api/ready")
+    def ready(response: Response):
+        return {"ready": read_database("check_connection", response)}
+
     @app.get("/api/database/dogs")
     def list_dogs(response: Response):
         return read_database("list_dogs", response)

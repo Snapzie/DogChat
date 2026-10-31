@@ -26,6 +26,12 @@ The server uses the existing `.env` settings:
 Install the SQL Server ODBC driver named in your connection string. Credentials
 stay on the server. The page receives only answer text and rendered Markdown.
 
+The page starts with a full-screen connection state on desktop and mobile. It
+reveals the welcome screen only after `/api/ready` successfully runs `SELECT 1`
+against the database. Failed checks keep the screen visible with a Try again
+button. No agent or model call is made by the readiness check. The database panel
+loads after readiness succeeds; the check is not a recurring keep-alive.
+
 Each browser session has a separate conversation stored in memory. Follow-up
 questions retain context. New conversation and page reloads both delete the
 previous thread and start a new one. If a reply is still running, a page reload

@@ -6,6 +6,11 @@ from db import engine
 from tables import dog, litter, titles, show, show_result, result_award
 
 
+def check_connection():
+    with engine.connect() as connection:
+        return connection.scalar(select(1)) == 1
+
+
 def list_dogs():
     selected_names = (
         "Tamilan Jingu-Kogo",

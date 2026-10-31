@@ -9,6 +9,15 @@
     :root { color-scheme: light; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #292e29; background: #faf9f6; }
     * { box-sizing: border-box; }
     body { margin: 0; }
+    body.connecting { overflow: hidden; }
+    .connecting .app, .connecting #database-panel { visibility: hidden; }
+    #connection-screen { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: #faf9f6; padding: 28px; text-align: center; }
+    .connection-card { max-width: 360px; }
+    .connection-card h2 { font-family: Georgia, "Times New Roman", serif; font-size: 36px; font-weight: 400; letter-spacing: -1px; margin: 0 0 18px; }
+    #connection-message { color: #757b70; font-size: 14px; line-height: 1.7; }
+    .connection-indicator { width: 8px; height: 8px; border-radius: 50%; background: #84917b; margin: 20px auto; }
+    .connection-card[aria-busy="true"] .connection-indicator { animation: pulse 1.2s infinite alternate; }
+    #connection-retry { border: 1px solid #cbd0c1; border-radius: 6px; background: transparent; padding: 10px 18px; color: #485e45; font-size: 13px; }
     button, textarea { font: inherit; }
     button { cursor: pointer; }
     button:focus-visible, textarea:focus-visible { outline: 2px solid #59705b; outline-offset: 4px; }
@@ -90,10 +99,19 @@
       .conversation main { grid-template-columns: minmax(0, 1fr) 180px; column-gap: 20px; }
     }
     @media (max-width: 560px) { .app { padding: 0 18px; } header { padding: 22px 0; } #welcome { padding-top: 70px; } .message { font-size: 14px; } }
-    @media (prefers-reduced-motion: reduce) { #status.busy::before { animation: none; } }
+    @media (prefers-reduced-motion: reduce) { .connection-card .connection-indicator, #status.busy::before { animation: none; } }
   </style>
 </head>
-<body>
+<body class="connecting">
+  <div id="connection-screen">
+    <div id="connection-card" class="connection-card" aria-busy="true">
+      <h2>DogChat</h2>
+      <div class="connection-indicator" aria-hidden="true"></div>
+      <p id="connection-message" role="status" aria-live="polite">Connecting to DogChat…</p>
+      <button id="connection-retry" type="button" hidden>Try again</button>
+      <noscript>Enable JavaScript to connect to DogChat.</noscript>
+    </div>
+  </div>
   <aside id="database-panel" aria-labelledby="database-heading">
     <h2 id="database-heading">Database</h2>
     <p class="database-note">Recorded data · separate from your chat</p>
@@ -143,6 +161,34 @@
     const app = document.querySelector('.app');
     const desktop = window.matchMedia('(min-width: 900px)');
     let busy = false;
+    let ready = false;
+    let connecting = false;
+    const connectionScreen = document.querySelector('#connection-screen');
+    const connectionCard = document.querySelector('#connection-card');
+    const connectionMessage = document.querySelector('#connection-message');
+    const connectionRetry = document.querySelector('#connection-retry');
+
+    async function connectApplication() {
+      if (connecting || ready) return;
+      connecting = true;
+      connectionCard.setAttribute('aria-busy', 'true');
+      connectionMessage.textContent = 'Connecting to DogChat… The database may take a moment to wake up.';
+      connectionRetry.hidden = true;
+      try {
+        const data = await getRecords('/api/ready');
+        if (data.ready !== true) throw new Error('Database is not ready.');
+        ready = true;
+        document.body.classList.remove('connecting');
+        connectionScreen.hidden = true;
+        loadDatabase();
+      } catch (error) {
+        connectionMessage.textContent = 'Could not connect to DogChat. Please try again.';
+        connectionRetry.hidden = false;
+      } finally {
+        connecting = false;
+        connectionCard.setAttribute('aria-busy', 'false');
+      }
+    }
 
     function setConversation(active) {
       app.classList.toggle('conversation', active);
@@ -281,7 +327,7 @@
     let databaseLoaded = false;
     let databaseLoading = false;
     async function loadDatabase() {
-      if (!desktop.matches || databaseLoaded || databaseLoading) return;
+      if (!ready || !desktop.matches || databaseLoaded || databaseLoading) return;
       databaseLoading = true;
       const container = document.querySelector('#database-dogs');
       container.replaceChildren(databaseElement('p', 'Loading dogs…'));
@@ -305,7 +351,6 @@
       }
     }
     desktop.addEventListener('change', loadDatabase);
-    loadDatabase();
 
     function updateInput() {
       send.disabled = busy || !question.value.trim();
@@ -402,6 +447,8 @@
       updateInput();
       question.focus();
     }));
+    connectionRetry.addEventListener('click', connectApplication);
+    connectApplication();
   </script>
 </body>
 </html>

@@ -24,6 +24,13 @@ It installs Microsoft ODBC Driver 18, uses `uv.lock`, and starts one Uvicorn wor
 on Render's `PORT` (10000 by default). Database connections close after use:
 both SQLAlchemy and pyodbc pooling are disabled to let idle Azure SQL compute pause.
 
+Opening a connection retries transient timeout/network failures up to three total
+attempts, with two seconds between attempts. Queries and agent/model calls are
+not replayed. Authentication and driver-configuration errors fail immediately.
+Each attempt uses the connection string's timeout; with `Connection Timeout=60`,
+three timed-out attempts can take approximately 184 seconds in total. This helps
+with temporary wake-up delays but does not bypass firewalls or free-tier limits.
+
 1. Confirm that the Azure `DogChat` database contains your imported records and
    `dogchat_agent` has read-only access.
 2. Commit the application, `Dockerfile`, `.dockerignore`, `.gitignore`,
